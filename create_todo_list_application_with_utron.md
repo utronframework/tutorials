@@ -1,5 +1,5 @@
 
-We will create a TODO List application in `utron` to explore all components that makes `utron` MVC tick. The source code of the final application is included in this repository and can be found here [utron todoMVC](fixtures/todo)
+We will create a TODO List application in `utron` to explore all components that makes `utron` MVC tick. The source code of the final application is included in this repository and can be found here [utron todo](https://github.com/utronframework/todo
 
 # TODO list application with `utron`
 
