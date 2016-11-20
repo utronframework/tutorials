@@ -1,5 +1,5 @@
 
-We will create a TODO List application in `utron` to explore all components that makes `utron` MVC tick. The source code of the final application is included in this repository and can be found here [utron todo](https://github.com/utronframework/todo
+We will create a TODO List application in `utron` to explore all components that makes `utron` MVC tick. The source code of the final application is included in this repository and can be found here [utron todo](https://github.com/utronframework/todo)
 
 # TODO list application with `utron`
 
@@ -86,14 +86,10 @@ type Todo struct {
 	UpdatedAt time.Time `schema:"-"`
 }
 
-func init() {
-	utron.RegisterModels(&Todo{})
-}
+
 ```
 
-Notice that we need to register our model by calling `utron.RegisterModels(&Todo{})` in the `init` function otherwise `utron` won't be aware of the model.
 
-`utron` will automatically create the table `todos` if it doesn't exist.
 
 Don't be confused by the `schema` tag, I just added them since we will use the [schema](https://github.com/gorilla/schema) package to decode form values(this has nothing to do with `utron`, you can use whatever form library you fancy.)
 
@@ -110,29 +106,33 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/gernest/utron"
-	"github.com/gernest/utron/fixtures/todo/models"
+	"github.com/gernest/utron/controller"
 	"github.com/gorilla/schema"
+	"github.com/utronframework/todo/models"
 )
 
 var decoder = schema.NewDecoder()
 
-type TODO struct {
-	*utron.BaseController
+//Todo is a controller for Todo list
+type Todo struct {
+	controller.BaseController
 	Routes []string
 }
 
-func (t *TODO) Home() {
+//Home renders a todo list
+func (t *Todo) Home() {
 	todos := []*models.Todo{}
 	t.Ctx.DB.Order("created_at desc").Find(&todos)
 	t.Ctx.Data["List"] = todos
 	t.Ctx.Template = "index"
 	t.HTML(http.StatusOK)
 }
-func (t *TODO) Create() {
+
+//Create creates a todo  item
+func (t *Todo) Create() {
 	todo := &models.Todo{}
 	req := t.Ctx.Request()
-	req.ParseForm()
+	_ = req.ParseForm()
 	if err := decoder.Decode(todo, req.PostForm); err != nil {
 		t.Ctx.Data["Message"] = err.Error()
 		t.Ctx.Template = "error"
@@ -144,7 +144,8 @@ func (t *TODO) Create() {
 	t.Ctx.Redirect("/", http.StatusFound)
 }
 
-func (t *TODO) Delete() {
+//Delete deletes a todo item
+func (t *Todo) Delete() {
 	todoID := t.Ctx.Params["id"]
 	ID, err := strconv.Atoi(todoID)
 	if err != nil {
@@ -157,8 +158,9 @@ func (t *TODO) Delete() {
 	t.Ctx.Redirect("/", http.StatusFound)
 }
 
-func NewTODO() *TODO {
-	return &TODO{
+//NewTodo returns a new  todo list controller
+func NewTodo() controller.Controller {
+	return &Todo{
 		Routes: []string{
 			"get;/;Home",
 			"post;/create;Create",
@@ -166,14 +168,7 @@ func NewTODO() *TODO {
 		},
 	}
 }
-
-func init() {
-	utron.RegisterController(NewTODO())
-}
 ```
-
-Note that we registered our controller by calling `utron.RegisterController(NewTODO())` in the `init` function
-so as to make `utron` aware of our controller. See Routing section below for more explanation of what the controller is doing.
 
 
 ## Routing
@@ -215,8 +210,8 @@ This is a better explanation from comments on the `router.go` file.
 So, that explains the following lines in our `todo` app in `controllers/todo.go`
 
 ```go
-func NewTODO() *TODO {
-	return &TODO{
+func NewTodo() controller.Controller {
+	return &Todo{
 		Routes: []string{
 			"get;/;Home",
 			"post;/create;Create",
@@ -230,7 +225,15 @@ You can define routes in a file in the `config` directory. The supported formats
 
 `utron` will look for file named `routes.json`, `routes.toml` or `routes.yml` in that order, the first to be found is the one to be used.
 
-I have included a sample routes file in [fixtures/config/routes.json](fixtures/config/routes.json).
+Example routes file
+```json
+{
+	"routes": [
+		"get,post;/hello;Sample.Hello",
+		"get,post;/about;Hello.About"
+	]
+}
+```
 
 The difference with case 2 above is you will need to specify the name of the controller explicitly. That is for `TODO` controller, we can define the home route string in routes file like `get;/;TODO.Home`.
 
@@ -302,13 +305,35 @@ Above is a simple golang template to render our `todo` list application.
 package main
 
 import (
+	"fmt"
+	"log"
+	"net/http"
+
 	"github.com/gernest/utron"
-	_ "github.com/gernest/utron/fixtures/todo/controllers"
-	_ "github.com/gernest/utron/fixtures/todo/models"
+	c "github.com/utronframework/todo/controllers"
+	"github.com/utronframework/todo/models"
 )
 
 func main() {
-	utron.Run()
+
+	// Start the MVC App
+	app, err := utron.NewMVC()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Register Models
+	app.Model.Register(&models.Todo{})
+
+	// CReate Models tables if they dont exist yet
+	app.Model.AutoMigrateAll()
+
+	// Register Controller
+	app.AddController(c.NewTodo)
+
+	// Start the server
+	port := fmt.Sprintf(":%d", app.Config.Port)
+	log.Fatal(http.ListenAndServe(port, app))
 }
 ```
 
@@ -319,19 +344,17 @@ In case you want to run the app we just created, it is included in this reposito
  - a working database connection (postgres, mysql, sqlite3 or foundation)
  - golang toolchain installed and the `go` command in your system $PATH.
 
-step 1 Install `utron` which will also include the todo app
+step 1 go get the todo package
 
-	$ go get github.com/gernest/utron
+	$ github.com/utronframework/todo
 
 step 2 cd into the todo app directory
 
-	$ cd $GOPATH/src/github.com/gernest/utron/fixtures/todo
+	$ cd $GOPATH/src/github.com/utronframework/todo
 
-step 3 install dependency
 
-	$ go get github.com/gorilla/schema
 
-step 4 edit `config/app.json` by setting database and database_conn to your values
+step 3 edit `config/app.json` by setting database and database_conn to your values
 
 step 5 run the app
 
@@ -339,7 +362,7 @@ step 5 run the app
 
 If you see something like this
 
-	$ 2015/09/15 18:27:24 >>INFO>> starting server at http://localhost:8090
+	$ 2016/11/20 11:38:10 >>INFO>> staring server on port:8090
 
 Then everything is okay, open `http://localhost:8090` in your browser to start writing your todos.
 If you experience anything different, redo the steps and make sure you did them in order and with no errors. If so, and it still doesn't work, open an [issue](https://github.com/gernest/utron/issues)
