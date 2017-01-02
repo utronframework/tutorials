@@ -310,7 +310,7 @@ import (
 	"net/http"
 
 	"github.com/gernest/utron"
-	c "github.com/utronframework/todo/controllers"
+	"github.com/utronframework/todo/controllers"
 	"github.com/utronframework/todo/models"
 )
 
